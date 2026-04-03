@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+:root {
+  --primary-color: #3b82f6;
+  --bg-glass-dark: rgba(20, 20, 25, 0.7);
+  --bg-glass-light: rgba(255, 255, 255, 0.1);
+  --active-glow: rgba(59, 130, 246, 0.5);
+  --border-glass: rgba(255, 255, 255, 0.15);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+#ui-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.crosshair {
+  width: 16px;
+  height: 16px;
+  border: 2px solid white;
+  border-radius: 50%;
+  opacity: 0.8;
+  mix-blend-mode: difference;
+}
+
+.hotbar-wrapper {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px;
+  background: var(--bg-glass-dark);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.hotbar-slot {
+  width: 52px;
+  height: 52px;
+  background: var(--bg-glass-light);
+  border: 1px solid var(--border-glass);
+  border-radius: 10px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.hotbar-slot-selected {
+  background: rgba(59, 130, 246, 0.2) !important;
+  border: 2px solid var(--primary-color) !important;
+  box-shadow: 0 0 20px var(--active-glow);
+  transform: scale(1.1) translateY(-4px);
+}
+
+.hotbar-image {
+  width: 36px;
+  height: 36px;
+  image-rendering: pixelated;
+}
+
+.slot-index {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.slot-count {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #141419;
+}
+
+.bg-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  opacity: 0.6;
+}
