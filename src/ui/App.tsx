@@ -1,5 +1,6 @@
 import React from 'react'
 import { Hotbar } from './Hotbar'
+import { TimeUI } from './TimeUI'
 
 export const App: React.FC = () => {
   return (
@@ -8,6 +9,7 @@ export const App: React.FC = () => {
       <div className="crosshair" />
       
       {/* HUD Elements */}
+      <TimeUI />
       <Hotbar />
     </div>
   )

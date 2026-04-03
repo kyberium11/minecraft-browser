@@ -20,7 +20,8 @@ export class DroppedItem extends THREE.Group {
     // For now, let's just use one material to save draw calls.
     const material = new THREE.MeshBasicMaterial({ 
       map: this.getTextureForType(type),
-      transparent: type === BlockType.GLASS || type === BlockType.OAK_LEAVES
+      transparent: type === BlockType.GLASS || type === BlockType.OAK_LEAVES,
+      color: type === BlockType.BRICK ? 0xcc4444 : (type === BlockType.ROOF ? 0x333333 : 0xffffff)
     })
     
     this.mesh = new THREE.Mesh(geometry, material)
@@ -37,6 +38,8 @@ export class DroppedItem extends THREE.Group {
       case BlockType.DIRT: return textureLoader.load('/assets/textures/dirt.png')
       case BlockType.STONE: return textureLoader.load('/assets/textures/stone.png')
       case BlockType.COBBLESTONE: return textureLoader.load('/assets/textures/cobblestone.png')
+      case BlockType.BRICK: return textureLoader.load('/assets/textures/cobblestone.png')
+      case BlockType.ROOF: return textureLoader.load('/assets/textures/stone.png')
       case BlockType.OAK_LOG: return textureLoader.load('/assets/textures/oak_log_side.png')
       case BlockType.OAK_LEAVES: return textureLoader.load('/assets/textures/oak_leaves.png')
       case BlockType.OAK_PLANKS: return textureLoader.load('/assets/textures/oak_planks.png')
