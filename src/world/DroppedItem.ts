@@ -15,16 +15,10 @@ export class DroppedItem extends THREE.Group {
     // 1. Create a smaller version of the block
     const geometry = new THREE.BoxGeometry(1, 1, 1)
     
-    // Simplification: use basic materials like in Chunk.ts
-    // or just one texture if it's simpler for icons.
-    // For now, let's just use one material to save draw calls.
-    const material = new THREE.MeshBasicMaterial({ 
-      map: this.getTextureForType(type),
-      transparent: type === BlockType.GLASS || type === BlockType.OAK_LEAVES,
-      color: type === BlockType.BRICK ? 0xcc4444 : (type === BlockType.ROOF ? 0x333333 : 0xffffff)
-    })
+    // Multi-material for proper mapping (Right, Left, Top, Bottom, Front, Back)
+    const materials = this.getMaterialsForType(type)
     
-    this.mesh = new THREE.Mesh(geometry, material)
+    this.mesh = new THREE.Mesh(geometry, materials)
     this.mesh.scale.set(0.25, 0.25, 0.25)
     this.add(this.mesh)
     
@@ -32,15 +26,44 @@ export class DroppedItem extends THREE.Group {
     this.startTime = performance.now()
   }
 
-  private getTextureForType(type: BlockType) {
+  private getMaterialsForType(type: BlockType): THREE.Material[] {
+    const sideTex = this.getTextureForType(type, 'side')
+    const topTex = this.getTextureForType(type, 'top')
+    const bottomTex = this.getTextureForType(type, 'bottom')
+
+    const sideMat = new THREE.MeshBasicMaterial({ 
+      map: sideTex, 
+      transparent: type === BlockType.GLASS || type === BlockType.OAK_LEAVES,
+      color: type === BlockType.BRICK ? 0xcc4444 : (type === BlockType.ROOF ? 0x333333 : 0xffffff)
+    })
+    const topMat = new THREE.MeshBasicMaterial({ 
+      map: topTex, 
+      transparent: sideMat.transparent,
+      color: sideMat.color
+    })
+    const bottomMat = new THREE.MeshBasicMaterial({ 
+      map: bottomTex, 
+      transparent: sideMat.transparent,
+      color: sideMat.color
+    })
+
+    return [sideMat, sideMat, topMat, bottomMat, sideMat, sideMat]
+  }
+
+  private getTextureForType(type: BlockType, face: 'top' | 'bottom' | 'side' = 'side') {
     switch (type) {
-      case BlockType.GRASS: return textureLoader.load('/assets/textures/grass_side.png')
+      case BlockType.GRASS:
+        if (face === 'top') return textureLoader.load('/assets/textures/grass_top.png')
+        if (face === 'bottom') return textureLoader.load('/assets/textures/dirt.png')
+        return textureLoader.load('/assets/textures/grass_side.png')
+      case BlockType.OAK_LOG:
+        if (face === 'top' || face === 'bottom') return textureLoader.load('/assets/textures/oak_log_top.png')
+        return textureLoader.load('/assets/textures/oak_log_side.png')
       case BlockType.DIRT: return textureLoader.load('/assets/textures/dirt.png')
       case BlockType.STONE: return textureLoader.load('/assets/textures/stone.png')
       case BlockType.COBBLESTONE: return textureLoader.load('/assets/textures/cobblestone.png')
       case BlockType.BRICK: return textureLoader.load('/assets/textures/cobblestone.png')
       case BlockType.ROOF: return textureLoader.load('/assets/textures/stone.png')
-      case BlockType.OAK_LOG: return textureLoader.load('/assets/textures/oak_log_side.png')
       case BlockType.OAK_LEAVES: return textureLoader.load('/assets/textures/oak_leaves.png')
       case BlockType.OAK_PLANKS: return textureLoader.load('/assets/textures/oak_planks.png')
       case BlockType.SAND: return textureLoader.load('/assets/textures/sand.png')

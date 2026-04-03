@@ -6,6 +6,7 @@ import { textureLoader } from './TextureLoader'
 import { SelectionBox } from '../world/SelectionBox'
 import { useInventoryStore } from './InventoryStore'
 import { ParticleSystem } from './Particles'
+import { PlayerModel } from './PlayerModel'
 
 export class Player {
   private camera: THREE.PerspectiveCamera
@@ -44,6 +45,9 @@ export class Player {
   private selectionBox: SelectionBox
   private worldReference?: World
   private particles: ParticleSystem
+  private model: PlayerModel
+  private isThirdPerson: boolean = false
+  public playerPosition = new THREE.Vector3(8, 25, 8)
 
   constructor(camera: THREE.PerspectiveCamera, domElement: HTMLElement, scene: THREE.Scene, particles: ParticleSystem) {
     this.camera = camera
@@ -52,8 +56,16 @@ export class Player {
     this.raycaster.far = 4 
     this.particles = particles
     
+    // Character Model
+    const skinTex = textureLoader.load('/assets/textures/knight_skin.bmp') // Generated procedural texture
+    skinTex.magFilter = THREE.NearestFilter
+    skinTex.minFilter = THREE.NearestFilter
+    
+    this.model = new PlayerModel(skinTex)
+    scene.add(this.model)
+    
     // Initial position
-    this.camera.position.set(8, 25, 8)
+    this.camera.position.copy(this.playerPosition)
     
     // Build Viewmodel
     this.viewmodel = new THREE.Group()
@@ -86,6 +98,7 @@ export class Player {
         case 'KeyS': this.moveBackward = true; break
         case 'KeyA': this.moveLeft = true; break
         case 'KeyD': this.moveRight = true; break
+        case 'KeyV': this.isThirdPerson = !this.isThirdPerson; break
         case 'ShiftLeft': this.isSprinting = true; break
         case 'Space': 
           if (this.canJump) {
@@ -202,8 +215,8 @@ export class Player {
 
     // --- Unstuck Logic ---
     let unstuckAttempts = 0
-    while (this.checkCollision(this.camera.position, world) && unstuckAttempts < 5) {
-      this.camera.position.y += 0.2
+    while (this.checkCollision(this.playerPosition, world) && unstuckAttempts < 5) {
+      this.playerPosition.y += 0.2
       this.velocity.y = 0
       this.canJump = true 
       unstuckAttempts++
@@ -225,27 +238,32 @@ export class Player {
     // Gravity
     this.velocity.y -= (this.isInWater ? this.gravity * 0.1 : this.gravity) * limitedDelta
 
-    // --- Collision Logic ---
-    this.controls.moveRight(-this.velocity.x * limitedDelta)
-    if (this.checkCollision(this.camera.position, world)) {
-      this.controls.moveRight(this.velocity.x * limitedDelta)
+    // --- Collision Logic (Decoupled from render Camera) ---
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion)
+    forward.y = 0; forward.normalize()
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion)
+    right.y = 0; right.normalize()
+
+    this.playerPosition.addScaledVector(right, -this.velocity.x * limitedDelta)
+    if (this.checkCollision(this.playerPosition, world)) {
+      this.playerPosition.addScaledVector(right, this.velocity.x * limitedDelta)
       this.velocity.x = 0
     }
 
-    this.controls.moveForward(-this.velocity.z * limitedDelta)
-    if (this.checkCollision(this.camera.position, world)) {
-      this.controls.moveForward(this.velocity.z * limitedDelta)
+    this.playerPosition.addScaledVector(forward, -this.velocity.z * limitedDelta)
+    if (this.checkCollision(this.playerPosition, world)) {
+      this.playerPosition.addScaledVector(forward, this.velocity.z * limitedDelta)
       this.velocity.z = 0
     }
 
-    const oldPosY = this.camera.position.y
-    this.camera.position.y += this.velocity.y * limitedDelta
-    if (this.checkCollision(this.camera.position, world)) {
+    const oldPosY = this.playerPosition.y
+    this.playerPosition.y += this.velocity.y * limitedDelta
+    if (this.checkCollision(this.playerPosition, world)) {
       if (this.velocity.y < 0) this.canJump = true
-      this.camera.position.y = oldPosY
+      this.playerPosition.y = oldPosY
       this.velocity.y = 0
     } else {
-      const belowPos = this.camera.position.clone()
+      const belowPos = this.playerPosition.clone()
       belowPos.y -= 0.1
       if (this.checkCollision(belowPos, world)) {
         this.canJump = true
@@ -262,7 +280,7 @@ export class Player {
     ]
     let waterFound = false
     for (const pt of checkPoints) {
-       if (world.getBlockAt(this.camera.position.x + pt.x, this.camera.position.y + pt.y, this.camera.position.z + pt.z) === BlockType.WATER) {
+       if (world.getBlockAt(this.playerPosition.x + pt.x, this.playerPosition.y + pt.y, this.playerPosition.z + pt.z) === BlockType.WATER) {
          waterFound = true
          break
        }
@@ -270,7 +288,7 @@ export class Player {
 
     // SPLASH EFFECT
     if (waterFound && !this.wasInWater) {
-       this.particles.emit(this.camera.position.x, this.camera.position.y - 1.5, this.camera.position.z, 30)
+       this.particles.emit(this.playerPosition.x, this.playerPosition.y - 1.5, this.playerPosition.z, 30)
     }
     
     this.wasInWater = this.isInWater
@@ -330,6 +348,38 @@ export class Player {
         this.isSwinging = false
         this.viewmodel.rotation.x = 0
       }
+    }
+
+    // --- 3rd Person & Model Updates ---
+    this.model.position.copy(this.playerPosition)
+    this.model.position.y -= 1.6 // Align with foot level
+    // Make the model face the same direction as the camera horizontally
+    this.model.rotation.y = this.camera.rotation.y + Math.PI
+
+    this.model.update(isMoving && this.canJump, time)
+
+    if (this.isThirdPerson) {
+      // Third Person View
+      const backward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.camera.quaternion)
+      backward.y = 0 // Keep the distance check horizontal if preferred, but usually full 3D is okay
+      backward.normalize()
+      
+      const targetPos = this.playerPosition.clone()
+      targetPos.addScaledVector(backward, 4.0) // 4 units behind
+      targetPos.y += 1.5 // slightly above head
+      
+      // We don't lerp because pointer lock controls gets extremely jittery.
+      // We explicitly lock position.
+      this.camera.position.copy(targetPos)
+      
+      this.model.visible = true
+      this.viewmodel.visible = false
+    } else {
+      // First Person View
+      this.camera.position.copy(this.playerPosition)
+      // Slight vertical eye offset if needed? Player position is already at eye level.
+      this.model.visible = false
+      this.viewmodel.visible = true
     }
   }
 
