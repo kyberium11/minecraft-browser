@@ -73,4 +73,32 @@ export class ParticleSystem {
     
     posAttr.needsUpdate = true
   }
+  public emitHeart(x: number, y: number, z: number, count: number = 8) {
+    let spawned = 0
+    for (let i = 0; i < this.counts && spawned < count; i++) {
+        if (this.lifetimes[i] <= 0) {
+            this.positions[i * 3] = x + (Math.random() - 0.5) * 1.5
+            this.positions[i * 3 + 1] = y + 1.0 + Math.random() * 0.5
+            this.positions[i * 3 + 2] = z + (Math.random() - 0.5) * 1.5
+            
+            this.velocities[i].set(0, 1.5 + Math.random(), 0) // Float up
+            this.lifetimes[i] = 2.0 
+            spawned++
+        }
+    }
+  }
+
+  public emitQuestion(x: number, y: number, z: number, count: number = 1) {
+    let spawned = 0
+    for (let i = 0; i < this.counts && spawned < count; i++) {
+        if (this.lifetimes[i] <= 0) {
+            this.positions[i * 3] = x
+            this.positions[i * 3 + 1] = y + 1.2
+            this.positions[i * 3 + 2] = z
+            this.velocities[i].set(0, 0.5, 0)
+            this.lifetimes[i] = 1.5
+            spawned++
+        }
+    }
+  }
 }

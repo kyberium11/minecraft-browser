@@ -48,6 +48,11 @@ export class Player {
   private model: PlayerModel
   private isThirdPerson: boolean = false
   public playerPosition = new THREE.Vector3(8, 25, 8)
+  
+  // Health System
+  public hp: number = 20
+  public isInvulnerable: boolean = false
+  private invulnTimer: number = 0
 
   constructor(camera: THREE.PerspectiveCamera, domElement: HTMLElement, scene: THREE.Scene, particles: ParticleSystem) {
     this.camera = camera
@@ -56,12 +61,25 @@ export class Player {
     this.raycaster.far = 4 
     this.particles = particles
     
-    // Character Model
-    const skinTex = textureLoader.load('/assets/textures/knight_skin.bmp') // Generated procedural texture
-    skinTex.magFilter = THREE.NearestFilter
-    skinTex.minFilter = THREE.NearestFilter
+    // Global reference for mobs to attack
+    ;(window as any).playerInstance = this
     
-    this.model = new PlayerModel(skinTex)
+    
+    // Character Model
+    const textures = {
+      head: textureLoader.load('/assets/textures/luffy_skin.png'),
+      body: textureLoader.load('/assets/textures/luffy_body.png'),
+      arms: textureLoader.load('/assets/textures/luffy_arms.png'),
+      legs: textureLoader.load('/assets/textures/luffy_legs.png'),
+      hat: textureLoader.load('/assets/textures/luffy_hat.png')
+    }
+    
+    Object.values(textures).forEach(tex => {
+      tex.magFilter = THREE.NearestFilter
+      tex.minFilter = THREE.NearestFilter
+    });
+    
+    this.model = new PlayerModel(textures)
     scene.add(this.model)
     
     // Initial position
@@ -158,6 +176,7 @@ export class Player {
   }
 
   private handleInteraction(button: number) {
+    this.raycaster.far = 8.5
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera)
     const intersects = this.raycaster.intersectObjects(this.worldReference!.children, true)
     
@@ -181,32 +200,61 @@ export class Player {
         this.selectionBox.hide()
       }
 
-      if (button === 0 && !hitWater) { // Left-click: Remove
-        const targetPos = intersect.point.clone().sub(normal!.clone().multiplyScalar(0.5))
-        this.worldReference!.setBlockAt(targetPos.x, targetPos.y, targetPos.z, BlockType.AIR)
-      } else if (button === 2) { // Right-click: Place
-        const inventory = useInventoryStore.getState()
-        const selectedSlot = inventory.slots[inventory.selectedSlotIndex]
-        
+      if (button === 0 && !hitWater) {
+        const origFar = this.raycaster.far;
+        this.raycaster.far = 4.5;
+        const entInts = this.raycaster.intersectObjects(this.worldReference.parent.children);
+        const h = entInts.find(i => { let c = i.object; while(c && !(c.userData && c.userData.isMob)) c = c.parent; return c && c.userData && c.userData.isMob; });
+        if (h) {
+          let c = h.object; while(c && !(c.userData && c.userData.isMob)) c = c.parent;
+          const mob = c?.userData.mobInstance;
+          if (mob && mob.takeDamage) {
+            mob.takeDamage(2, this.camera.position);
+            this.model?.triggerSwing('break');
+            this.raycaster.far = origFar;
+            return;
+          }
+        }
+        this.raycaster.far = origFar;
+
+        const targetPos = intersect.point.clone().sub(normal!.clone().multiplyScalar(0.5));
+        this.worldReference!.setBlockAt(targetPos.x, targetPos.y, targetPos.z, BlockType.AIR);
+        this.model?.triggerSwing('break');
+      } else if (button === 2) {
+        const inventory = useInventoryStore.getState();
+        const selectedSlot = inventory.slots[inventory.selectedSlotIndex];
         if (selectedSlot.type !== null && selectedSlot.count > 0) {
-          // If we hit water, replace the water block. Otherwise place on face.
-          const targetPos = hitWater ? 
-            intersect.point.clone().sub(normal!.clone().multiplyScalar(0.1)) :
-            intersect.point.clone().add(normal!.clone().multiplyScalar(0.5))
-          
-          const testPos = new THREE.Vector3(Math.floor(targetPos.x) + 0.5, Math.floor(targetPos.y) + 0.5, Math.floor(targetPos.z) + 0.5)
+          const targetPos = hitWater ? intersect.point.clone().sub(normal!.clone().multiplyScalar(0.1)) : intersect.point.clone().add(normal!.clone().multiplyScalar(0.5));
+          const testPos = new THREE.Vector3(Math.floor(targetPos.x) + 0.5, Math.floor(targetPos.y) + 0.5, Math.floor(targetPos.z) + 0.5);
           if (testPos.distanceTo(this.camera.position) > 0.8) {
             this.worldReference!.setBlockAt(targetPos.x, targetPos.y, targetPos.z, selectedSlot.type)
             inventory.removeItem(selectedSlot.type)
+            this.model?.triggerSwing('place', selectedSlot.type)
+          } else {
+            this.model?.triggerSwing('break') // swing anyway when failing to place
           }
         }
       }
     } else {
       this.selectionBox.hide()
+      // Swing anyway even if clicking the air
+      if (button === 2) {
+        const inventory = useInventoryStore.getState()
+        const selectedSlot = inventory.slots[inventory.selectedSlotIndex]
+        if (selectedSlot.type !== null) {
+          this.model?.triggerSwing('place', selectedSlot.type)
+        } else {
+          this.model?.triggerSwing('break')
+        }
+      } else {
+        this.model?.triggerSwing('break')
+      }
     }
   }
 
-  public update(delta: number, world: World) {
+  public takeDamage(amount: number) { if (this.isInvulnerable || this.hp <= 0) return; this.hp -= amount; this.isInvulnerable = true; this.invulnTimer = 0.5; if (this.hp <= 0) { this.hp = 20; this.playerPosition.set(8, 30, 8); } }
+
+  public update(delta: number, world: World) { if (this.invulnTimer > 0) { this.invulnTimer -= delta; if (this.invulnTimer <= 0) this.isInvulnerable = false; }
     this.worldReference = world
     if (!this.controls.isLocked) return
 
@@ -301,6 +349,7 @@ export class Player {
     }
 
     // --- Interaction Visuals (Selection Box) ---
+    this.raycaster.far = 8.5
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera)
     const intersects = this.raycaster.intersectObjects(world.children, true)
     
@@ -365,8 +414,9 @@ export class Player {
       backward.normalize()
       
       const targetPos = this.playerPosition.clone()
-      targetPos.addScaledVector(backward, 4.0) // 4 units behind
-      targetPos.y += 1.5 // slightly above head
+      // Bring camera closer like GTA (2 units behind, 0.5 units above head level)
+      targetPos.addScaledVector(backward, 2.0) 
+      targetPos.y += 0.5
       
       // We don't lerp because pointer lock controls gets extremely jittery.
       // We explicitly lock position.

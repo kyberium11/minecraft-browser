@@ -19,7 +19,10 @@ export const BlockType = {
   BRICK: 17,
   ROOF: 18,
   FLOWER_RED: 19,
-  FLOWER_YELLOW: 20
+  FLOWER_YELLOW: 20,
+  SNOW: 21,
+  WHEAT: 22,
+  CARROT: 23
 } as const
 
 export type BlockType = typeof BlockType[keyof typeof BlockType]

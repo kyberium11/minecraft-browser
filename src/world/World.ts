@@ -102,7 +102,7 @@ export class World extends THREE.Group {
     const affectedChunks = new Set<string>()
 
     for (const update of currentBatch) {
-      const { x, y, z, type, dist } = update
+      const { x, y, z, dist } = update
       if (dist >= 8) continue // Flow limit (7 blocks from source)
       if (y <= 1) continue // Bedrock floor
 
@@ -123,11 +123,26 @@ export class World extends THREE.Group {
           if (chunk) {
             const lx = ((Math.floor(nx) % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE
             const lz = ((Math.floor(nz) % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE
-            chunk.setBlockInternal(lx, ny, lz, BlockType.WATER)
+            
+            // Flow logic: Only spread horizontally if the block below is solid.
+            // If the block below is AIR, we drop straight down.
+            if (n.dy === 0) {
+                // Horizontal spread 
+                const blockBelow = this.getBlockAt(nx, ny - 1, nz)
+                if (blockBelow === BlockType.AIR) {
+                   // If block below is air, we shouldn't spread horizontally here unless we also fall
+                   // Actually, if block below is air, standard physics says water goes straight down instead of spreading wide.
+                   // To keep it simple: we skip horizontal spread if there's air below, because the down-flow handles it.
+                   continue
+                }
+            }
+
+            const nextDist = dist + n.d
+            chunk.setBlockInternal(lx, ny, lz, (BlockType.WATER | (nextDist << 5)) as BlockType)
             affectedChunks.add(`${chunk.xOffset},${chunk.zOffset}`)
             
             // Queue next flow step
-            this.fluidQueue.push({ x: nx, y: ny, z: nz, type: BlockType.WATER, dist: dist + n.d })
+            this.fluidQueue.push({ x: nx, y: ny, z: nz, type: BlockType.WATER, dist: nextDist })
           }
         }
       }
@@ -157,7 +172,7 @@ export class World extends THREE.Group {
     if (!chunk) return BlockType.AIR
     const lx = ((Math.floor(x) % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE
     const lz = ((Math.floor(z) % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE
-    return chunk.getBlock(lx, Math.floor(y), lz)
+    return (chunk.getBlock(lx, Math.floor(y), lz) & 0x1F) as BlockType
   }
 
   public setBlockAt(x: number, y: number, z: number, type: BlockType) {
@@ -167,7 +182,8 @@ export class World extends THREE.Group {
       const lz = ((Math.floor(z) % CHUNK_SIZE) + CHUNK_SIZE) % CHUNK_SIZE
       const ly = Math.floor(y)
 
-      const oldType = chunk.getBlock(lx, ly, lz)
+      const oldRaw = chunk.getBlock(lx, ly, lz)
+      const oldType = oldRaw & 0x1F
       chunk.setBlockInternal(lx, ly, lz, type)
       
       // Fluid Trigger

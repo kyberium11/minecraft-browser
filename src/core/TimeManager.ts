@@ -3,7 +3,6 @@ import { useTimeStore } from './TimeStore'
 
 export class TimeManager {
   private gameTime: number = 6000 // Start at 6:00 AM
-  private timeScale: number = 20 // Speed of time
   private frames: number = 0
   private updateFrequency: number = 10
 
@@ -12,8 +11,11 @@ export class TimeManager {
   public ambientColor: THREE.Color = new THREE.Color()
   public isNightTime: boolean = false
 
-  public update(delta: number) {
-    this.gameTime = (this.gameTime + delta * this.timeScale) % 24000
+  public update(_delta: number) {
+    const now = new Date()
+    // Convert 24hr real time to 0-24000 scale
+    this.gameTime = (now.getHours() * 1000) + (now.getMinutes() * 1000 / 60) + (now.getSeconds() * 1000 / 3600)
+    
     this.frames++
 
     // Optimization: Only calculate lighting/sky parameters every N frames

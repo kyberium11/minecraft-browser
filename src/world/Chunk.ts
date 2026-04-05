@@ -106,7 +106,10 @@ export class Chunk extends THREE.Group {
       new THREE.MeshBasicMaterial({ color: 0xcc4444, map: textureLoader.load('/assets/textures/cobblestone.png'), vertexColors: true }), // 18: BRICK (Tinted Masonry)
       new THREE.MeshBasicMaterial({ color: 0x333333, map: textureLoader.load('/assets/textures/stone.png'), vertexColors: true }),       // 19: ROOF (Dark Shingle Look)
       new THREE.MeshBasicMaterial({ color: 0xff0000, vertexColors: true }), // 20: FLOWER_RED
-      new THREE.MeshBasicMaterial({ color: 0xffff00, vertexColors: true })  // 21: FLOWER_YELLOW
+      new THREE.MeshBasicMaterial({ color: 0xffff00, vertexColors: true }), // 21: FLOWER_YELLOW
+      new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true }), // 22: SNOW
+      new THREE.MeshBasicMaterial({ map: textureLoader.load('/wheat.png'), transparent: true, side: THREE.DoubleSide, vertexColors: true }), 
+      new THREE.MeshBasicMaterial({ color: 0xffa500, transparent: true, vertexColors: true })
     ]
 
     if (!this.mesh) {

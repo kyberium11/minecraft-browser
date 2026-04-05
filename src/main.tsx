@@ -11,6 +11,8 @@ import { BlockType } from './world/VoxelConfig'
 import { globalUniforms } from './world/Chunk'
 import { TimeManager } from './core/TimeManager'
 import { Sky } from 'three/examples/jsm/objects/Sky'
+import { NightSky } from './core/NightSky'
+import { EntityManager, PassiveMob } from './core/EntityManager'
 
 // 0. Time & Atmosphere
 const timeManager = new TimeManager()
@@ -30,6 +32,9 @@ uiRoot.render(<App />)
 // 1. Initial Setup
 const scene = new THREE.Scene()
 scene.add(sky)
+
+const nightSky = new NightSky()
+scene.add(nightSky)
 scene.background = new THREE.Color(0x87CEEB)
 scene.fog = new THREE.FogExp2(0x87CEEB, 0.015)
 
@@ -55,11 +60,17 @@ scene.add(world)
 const particleSystem = new ParticleSystem(scene)
 const player = new Player(camera, renderer.domElement, scene, particleSystem)
 
+const entityManager = new EntityManager(scene, particleSystem);
+(window as any).entityManagerInstance = entityManager;
+
+
 // 3. Initial Inventory
 const store = useInventoryStore.getState()
 store.setSlot(0, BlockType.OAK_PLANKS, 64)
 store.setSlot(1, BlockType.COBBLESTONE, 64)
 store.setSlot(2, BlockType.GLASS, 64)
+store.setSlot(3, BlockType.WHEAT, 64)
+store.setSlot(4, BlockType.CARROT, 64)
 
 // 4. Animation Loop
 let lastTime = 0
@@ -99,6 +110,8 @@ function animate(time: number) {
   player.update(delta, world)
   world.update(camera.position, delta)
   particleSystem.update(delta)
+  nightSky.update(camera.position, timeManager.sunDirection.y, time)
+  entityManager.update(delta, world, camera.position)
   
   // Update global uniforms (sea waves, etc)
   globalUniforms.uTime.value = time * 0.001
