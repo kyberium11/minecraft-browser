@@ -1,5 +1,6 @@
 import * as THREE from 'three'
-import { World } from '../world/VoxelConfig'
+import { World } from '../world/World'
+import { BlockType } from '../world/VoxelConfig'
 
 export class Entity {
   public id: string = Math.random().toString(36).substring(2, 11)
