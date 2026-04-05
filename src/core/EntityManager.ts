@@ -55,7 +55,17 @@ export class Entity {
 
     if (this.invulnTimer > 0) {
       this.invulnTimer -= delta
-      if (this.invulnTimer <= 0) {\n        this.isInvulnerable = false;\n        this.mesh.traverse(child => {\n          if (child instanceof THREE.Mesh && child !== this.hpBarFill && child !== this.hpBar) {\n            const mat = child.material;\n            if (mat.userData && mat.userData.originalColor) mat.color.copy(mat.userData.originalColor);\n          }\n        });\n      }
+      if (this.invulnTimer <= 0) {
+        this.isInvulnerable = false;
+        this.mesh.traverse(child => {
+          if (child instanceof THREE.Mesh && child !== this.hpBarFill && (this as any).hpBar && child !== (this as any).hpBar) {
+            const mat = child.material as THREE.MeshBasicMaterial;
+            if (mat && mat.userData && mat.userData.originalColor) {
+                mat.color.copy(mat.userData.originalColor);
+            }
+          }
+        });
+      }
     }
 
     // Update HP Bar
@@ -123,16 +133,6 @@ export class Entity {
     this.deathTimer = 0
     if ((window as any).particleSystemInstance) {
         (window as any).particleSystemInstance.emitSoul(this.position.x, this.position.y, this.position.z)
-    }
-  }
-      const dir = this.position.clone().sub(knockbackSource).setY(0).normalize()
-      this.velocity.x += dir.x * 12
-      this.velocity.z += dir.z * 12
-      this.velocity.y = 5 // Pop-up
-    }
-
-    if (this.hp <= 0) {
-      this.isDead = true
     }
   }
 
